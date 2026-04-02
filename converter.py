@@ -3,8 +3,26 @@ from tkinter import ttk, scrolledtext, messagebox
 import re
 import json
 import os
+import urllib.request
+import webbrowser
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "character_map.json")
+CURRENT_VERSION = "v1.1.0"
+RELEASES_URL = "https://github.com/limitdriver/Renpy-Docs-Converter/releases"
+RELEASES_API = "https://api.github.com/repos/limitdriver/Renpy-Docs-Converter/releases/latest"
+
+
+def check_for_update():
+    try:
+        req = urllib.request.Request(RELEASES_API, headers={"User-Agent": "RenpyConverter"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read())
+        latest = data.get("tag_name", "")
+        if latest and latest != CURRENT_VERSION:
+            return latest
+    except Exception:
+        pass
+    return None
 
 DEFAULT_CHAR_MAP = {
     "Quiet Woman": "qwoman",
@@ -35,7 +53,6 @@ def convert(text, char_map):
         line = raw_line.strip()
 
         if not line:
-            output.append("")
             continue
 
         # Narration: line starts with ">"
@@ -178,6 +195,11 @@ class ConverterApp(tk.Tk):
         help_label.configure(state=tk.DISABLED)
         help_label.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
+        help_btn = ttk.Frame(help_frame)
+        help_btn.pack(fill=tk.X, padx=8, pady=(0, 8))
+        ttk.Label(help_btn, text=f"Version {CURRENT_VERSION}").pack(side=tk.LEFT)
+        ttk.Button(help_btn, text="Check for Updates", command=self._check_updates).pack(side=tk.RIGHT)
+
     def _populate_map_text(self):
         self.map_text.delete("1.0", tk.END)
         for name, var in self.char_map.items():
@@ -235,6 +257,14 @@ class ConverterApp(tk.Tk):
         text = self.output_text.get("1.0", tk.END).strip()
         self.clipboard_clear()
         self.clipboard_append(text)
+
+    def _check_updates(self):
+        latest = check_for_update()
+        if latest:
+            if messagebox.askyesno("Update Available", f"Version {latest} is available.\nOpen the releases page?"):
+                webbrowser.open(RELEASES_URL)
+        else:
+            messagebox.showinfo("Up to Date", f"You're on the latest version ({CURRENT_VERSION}).")
 
     def _clear(self):
         self.input_text.delete("1.0", tk.END)
